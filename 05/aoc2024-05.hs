@@ -1,3 +1,5 @@
+import Data.List (elemIndex, find, findIndex, sortBy)
+import Data.Maybe (fromJust)
 import System.Environment (getArgs)
 
 splitDelim :: Char -> String -> [String]
@@ -8,15 +10,20 @@ splitDelim d s =
   where
     trim s = if null s || head s /= d then s else tail s
 
-
-extract :: [a] -> Int -> ([a], a, [a])
-extract xs i = (take i xs, xs !! i, tail $ drop i xs)
+pageOrder :: [(Int, Int)] -> Int -> Int -> Ordering
+pageOrder orderings a b
+  | (a, b) `elem` orderings = LT
+  | (b, a) `elem` orderings = GT
+  | otherwise = EQ
 
 isCorrectlyOrdered :: [(Int, Int)] -> [Int] -> Bool
-isCorrectlyOrdered orderings pages = all (\i -> let (b, e, a) = extract pages i
-                                                    shouldBeBefore = [before | (before, e) <- orderings ]
-                                                    shouldBeAfter  = [after  | (e, after)  <- orderings ]
-                                                 in all (`elem` shouldBeBefore) b && all (`elem` shouldBeAfter) a) [0..length pages - 1]
+isCorrectlyOrdered orderings pages = fixPages orderings pages == pages
+
+fixPages :: [(Int, Int)] -> [Int] -> [Int]
+fixPages orderings = sortBy (pageOrder orderings)
+
+middleElems :: [[a]] -> [a]
+middleElems = map (\l -> l !! (length l `div` 2))
 
 main :: IO ()
 main = do
@@ -25,7 +32,6 @@ main = do
   let ls = lines raw
   let orderingLines = takeWhile (/= "") ls
   let updateLines = tail $ dropWhile (/= "") ls
-
   let orderings :: [(Int, Int)] =
         map
           ( \s ->
@@ -34,10 +40,10 @@ main = do
           )
           orderingLines
   let updates :: [[Int]] = map (map read . splitDelim ',') updateLines
-
   let validUpdates = filter (isCorrectlyOrdered orderings) updates
-  let middleElems  = map (\l -> l !! (length l `div` 2)) validUpdates
-  print middleElems
-  let pt1 = sum middleElems
-
+  let pt1 = sum $ middleElems validUpdates
   putStrLn $ "part 1: " ++ show pt1
+
+  let invalidUpdates = filter (not . isCorrectlyOrdered orderings) updates
+  let pt2 = sum $ middleElems (map (fixPages orderings) invalidUpdates)
+  putStrLn $ "part 2: " ++ show pt2
