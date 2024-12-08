@@ -1,5 +1,6 @@
 import Control.Monad (join)
-import Data.List (findIndex)
+import Data.Either (isLeft)
+import Data.List (findIndex, iterate')
 import Data.Maybe (fromJust)
 import System.Environment (getArgs)
 
@@ -37,6 +38,9 @@ data Board = Board
     guard :: Guard
   }
 
+updateCoord :: [[a]] -> (Int, Int) -> a -> [[a]]
+updateCoord old coord new = let updRow = old !! snd coord in take (snd coord) old ++ [take (fst coord) updRow ++ [new] ++ drop (fst coord + 1) updRow] ++ drop (snd coord + 1) old
+
 move :: Board -> Either Int Board
 move Board {cells = c, guard = Guard {guardPos = g, facing = f}} =
   let n = length (head c)
@@ -51,9 +55,7 @@ move Board {cells = c, guard = Guard {guardPos = g, facing = f}} =
           let cellInFront = (c !! snd inFront) !! fst inFront
            in case cellInFront of
                 Blocked -> Right $ Board {cells = c, guard = Guard {guardPos = g, facing = rotate f}}
-                _ -> Right $ Board {cells = c', guard = Guard {guardPos = inFront, facing = f}}
-                  where
-                    c' = map (\y -> map (\x -> if (x, y) == g then Visited else c !! y !! x) [0 .. n - 1]) [0 .. n - 1]
+                _ -> Right $ Board {cells = updateCoord c g Visited, guard = Guard {guardPos = inFront, facing = f}}
 
 instance Show Board where
   show Board {cells = c, guard = Guard {guardPos = g, facing = f}} =
@@ -100,5 +102,6 @@ main = do
                in Guard {guardPos = (gX, gY), facing = dir}
           }
 
-  --   print $ iterateMove' board
+  -- print $ iterateMove' board
   print $ iterateMove board
+  -- print $ take 5000 $ iterate' (either undefined id . move) board
